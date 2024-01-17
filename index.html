@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+      #map {
+        height: 400px;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 20px;
+      }
+
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #f2f2f2;
+      }
+
+      .zoom-button {
+        cursor: pointer;
+        color: blue;
+        text-decoration: underline;
+        border: none;
+        background-color: transparent;
+      }
+    </style>
+    <title>Leaflet Map</title>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <!-- Add a table below the map -->
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Gender</th>
+          <th>Age</th>
+          <th>Occupation</th>
+          <th>Household Size</th>
+          <th>Household Income</th>
+          <th>No. of PWD</th>
+          <th>Elevation Flood</th>
+          <th>Submission Time</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="data-table-body"></tbody>
+    </table>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // Fetch data from the provided URL
+        fetch("http://localhost:3000/fetchData")
+          .then((response) => response.json())
+          .then((data) => {
+            // Initialize the Leaflet map
+            var map = L.map("map").setView([23.6943117, 90.344352], 10);
+
+            // Add OpenStreetMap as a tile layer
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+              attribution: "© OpenStreetMap contributors",
+            }).addTo(map);
+
+            // Reference to the table body
+            var tableBody = document.getElementById("data-table-body");
+
+            // Iterate through data and add polygons to the map and rows to the table
+            data.results.forEach((result) => {
+              // Split the coordinates into an array
+              var coordinatesArray = result.Record_an_area.split(";").map(
+                (coord) => coord.trim().split(" ").slice(0, 2).map(parseFloat)
+              );
+
+              // Create a polygon using the coordinates
+              var polygon = L.polygon(coordinatesArray, {
+                color: "blue",
+              }).addTo(map);
+
+              // Extract data from the first beneficiary in the group
+              var beneficiary = result.group_jv0ss15[0];
+
+              // Add a popup with information about the data point
+              polygon.bindPopup(`
+    <strong>ID:</strong> ${result._id}<br>
+    <strong>Name:</strong> ${beneficiary["group_jv0ss15/Beneficiary_s_Name"]}<br>
+    <strong>Gender:</strong> ${beneficiary["group_jv0ss15/Beneficiary_s_Gender"]}<br>
+    <strong>Age:</strong> ${beneficiary["group_jv0ss15/Beneficiary_s_Age"]}<br>
+    <strong>Occupation:</strong> ${beneficiary["group_jv0ss15/Beneficiary_s_Occupation"]}<br>
+    <strong>Household Size:</strong> ${beneficiary["group_jv0ss15/Household_Size"]}<br>
+    <strong>Household Income:</strong> ${beneficiary["group_jv0ss15/Household_Income"]}<br>
+    <strong>No. of PWD:</strong> ${beneficiary["group_jv0ss15/No_of_PWD_in_Household"]}<br>
+    <strong>Elevation Flood:</strong> ${beneficiary["group_jv0ss15/Elevation_flood"]}<br>
+    <strong>Submission Time:</strong> ${result._submission_time}
+  `);
+
+              // Create a table row
+              var row = tableBody.insertRow();
+
+              // Extract latitude and longitude from the "Record_Location" property
+              var locationCoordinates = result.Record_Location.split(" ")
+                .slice(0, 2)
+                .map(parseFloat);
+
+              // Create a marker at the specified location
+              var marker = L.marker(locationCoordinates).addTo(map);
+
+              // Add a popup with information about the marker
+              marker.bindPopup(`
+    <strong>Record Location:</strong> ${result.Record_Location}<br>
+    <strong>Surveyor Name:</strong> ${result.Surveyor_Name}<br>
+    <strong>Submission Time:</strong> ${result._submission_time}
+  `);
+
+              // Insert data into the table cells
+              var cellId = row.insertCell(0);
+              var cellName = row.insertCell(1);
+              var cellGender = row.insertCell(2);
+              var cellAge = row.insertCell(3);
+              var cellOccupation = row.insertCell(4);
+              var cellHouseholdSize = row.insertCell(5);
+              var cellHouseholdIncome = row.insertCell(6);
+              var cellNoOfPWD = row.insertCell(7);
+              var cellElevationFlood = row.insertCell(8);
+              var cellSubmissionTime = row.insertCell(9);
+              var cellAction = row.insertCell(10);
+
+              cellId.innerHTML = result._id;
+              cellName.innerHTML =
+                beneficiary["group_jv0ss15/Beneficiary_s_Name"];
+              cellGender.innerHTML =
+                beneficiary["group_jv0ss15/Beneficiary_s_Gender"];
+              cellAge.innerHTML =
+                beneficiary["group_jv0ss15/Beneficiary_s_Age"];
+              cellOccupation.innerHTML =
+                beneficiary["group_jv0ss15/Beneficiary_s_Occupation"];
+              cellHouseholdSize.innerHTML =
+                beneficiary["group_jv0ss15/Household_Size"];
+              cellHouseholdIncome.innerHTML =
+                beneficiary["group_jv0ss15/Household_Income"];
+              cellNoOfPWD.innerHTML =
+                beneficiary["group_jv0ss15/No_of_PWD_in_Household"];
+              cellElevationFlood.innerHTML =
+                beneficiary["group_jv0ss15/Elevation_flood"];
+              cellSubmissionTime.innerHTML = result._submission_time;
+
+              // Create a button to zoom to the polygon
+              var zoomButton = document.createElement("button");
+              zoomButton.innerText = "Zoom";
+              zoomButton.className = "zoom-button";
+              zoomButton.onclick = function () {
+                // Fit the map to the polygon's bounds
+                map.fitBounds(polygon.getBounds());
+              };
+
+              cellAction.appendChild(zoomButton);
+            });
+          })
+          .catch((error) => console.error("Error fetching data:", error));
+      });
+    </script>
+  </body>
+</html>
